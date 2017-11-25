@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 12 8" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:1.41421;">
+    <g transform="matrix(1,0,0,1,-244.629,-197.966)">
+        <g transform="matrix(1,0,0,1,-676.373,-1522.02)">
+            <path id="Arrow-Icon" serif:id="Arrow Icon" d="M921.256,1721.5C920.917,1721.16 920.917,1720.59 921.256,1720.25C921.595,1719.9 922.143,1719.9 922.482,1720.25L926.997,1724.88L931.512,1720.25C931.851,1719.9 932.4,1719.9 932.739,1720.25C933.077,1720.59 933.077,1721.16 932.739,1721.5L927.628,1726.75C927.455,1726.93 927.225,1727.02 926.997,1727.01C926.769,1727.02 926.54,1726.93 926.366,1726.75L921.256,1721.5Z" style="fill:rgb(131,147,167);"/>
+        </g>
+    </g>
+</svg>

@@ -1,0 +1,48 @@
+{
+	"newRecipes" : [
+		{   
+			"id": "cassier1",
+            "ownerId": "smackjax",
+            "name": "Cous Cous",
+            "ovenTemp": "",
+            "ingredients": ["muffins", "sugar", "cinnamon"],
+            "steps": [
+                "Roll muffins in sugar and cinnamon",
+                "Eat until fat"
+            ]
+        },
+        {   "id": "cassier2",
+            "ownerId": "fId3",
+            "name": "Black Bean Brownies",
+            "ovenTemp": "200",
+            "ingredients": ["2 Chickens", "1/2 cup basil", "1/3 cups olive oil", "2 Onions"],
+            "steps": [
+                "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce faucibus viverra fringilla. Maecenas viverra fermentum feugiat. Suspendisse semper quam non lacus viverra, in lobortis lectus cursus.",
+                "Nam luctus erat et mi pretium, vel consectetur libero vulputate. Vestibulum tristique leo eget eros faucibus, nec pharetra odio interdum. Suspendisse non gravida metus, in elementum lorem. Donec et enim sit amet mauris fringilla posuere. Curabitur nec libero vel turpis gravida mollis.",
+                "Pellentesque at convallis leo, non sollicitudin leo. Proin vulputate elit non erat porta mattis. Suspendisse condimentum velit vitae arcu facilisis, vitae porta dui ultricies. Fusce ac dictum mauris. Integer ac erat volutpat, mollis turpis sit amet, dictum eros."
+            ]
+        },
+        {   "id": "cassier3",
+            "ownerId": "fId17",
+            "name": "Swordfish Steak",
+            "ovenTemp": "200",
+            "ingredients": ["1 cup chicken", "2 tablespoons basil", "3 tablespoons oregano", "1 Onions", "2 cups parmesan cheese"],
+            "steps": [
+                "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce faucibus viverra fringilla. Maecenas viverra fermentum feugiat. Suspendisse semper quam non lacus viverra, in lobortis lectus cursus.",
+                "Nam luctus erat et mi pretium, vel consectetur libero vulputate. Vestibulum tristique leo eget eros faucibus, nec pharetra odio interdum. Suspendisse non gravida metus, in elementum lorem. Donec et enim sit amet mauris fringilla posuere. Curabitur nec libero vel turpis gravida mollis.",
+                "Pellentesque at convallis leo, non sollicitudin leo. Proin vulputate elit non erat porta mattis. Suspendisse condimentum velit vitae arcu facilisis, vitae porta dui ultricies. Fusce ac dictum mauris. Integer ac erat volutpat, mollis turpis sit amet, dictum eros."
+                ]
+        },
+        {   
+			"id": "cassier4",
+            "ownerId": "smackjax",
+            "name": "Something Healthy",
+            "ovenTemp": "",
+            "ingredients": ["milk", "gelatin", "vanilla"],
+            "steps": [
+                "Stir milk furiously while heating on top of a warm stove, but not too warm",
+                "add enough gelatin to make it gelatonous without being totally gross and stuff."
+            ]
+        }
+		]
+}
