@@ -33,15 +33,19 @@ app.use('/app',
 
 // JWT authentication stuff
 var expressJWT = require('express-jwt');
+
 var JWTSecret = require('./_jwt/secret');
+
 // Routes without authorization
 app.use(
   expressJWT({secret: JWTSecret}).unless({
-  path: [/\/login\//i, '/', 
+  path: [
+  /\/login\//i, '/', 
+  // App pages
   '/recipe-dash', 
-  /\/friends/i, 
-  /\/recipes/i,
-  /\/settings/i
+  /^\/friends/i, 
+  /^\/recipes/i,
+  /^\/settings/i
 ]
 }));
 
@@ -54,7 +58,6 @@ app.use('/api/login', login);
 app.use('/api/user', userData);
 app.use('/api/recipes', recipes);
 app.use('/api/friends', friends);
-
 
 
 // Catch all always returns app js

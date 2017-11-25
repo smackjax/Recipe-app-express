@@ -9,7 +9,6 @@ var USERS = db.users;
 
 // Creates new/updates current recipe 
 router.post('/', (req, res)=>{
-    console.log("Request to recipes/: ", req);
     // req.user.userId(parsed from JWT)
     // req.body.newRecipes
     if(req.body.newRecipes && req.body.newRecipes.length > 0){
@@ -47,8 +46,9 @@ router.post('/', (req, res)=>{
                     return res.status(404).send("User not found.")
                 }
             });
-        } catch(e){
-            return res.status(550).send("Database error: " + e );
+        } catch(err){
+            console.log(err);
+            return res.status(550).send("Database error: ");
         }
     } else {
         return res.status(400).send("'newRecipes' not set in request. Should be array of recipe objects.");

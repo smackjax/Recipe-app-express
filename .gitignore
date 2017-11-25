@@ -29,6 +29,5 @@ node_modules
 # Debug log from npm
 npm-debug.log
 
-# Private Server info
-_db
-_jwt
+# Start script
+start-server.bat
