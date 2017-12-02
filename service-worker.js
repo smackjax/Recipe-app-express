@@ -363,6 +363,7 @@ self.addEventListener("install", event=>{
             setDbData(RECIPES_SAVE_KEY, []),
             setDbData(RECIPES_DELETE_KEY, []),
             setDbData(FRIENDS_DELETE_KEY, []),
+            setDbData(TOKEN_KEY, "")
         ])
         .then(()=>{ console.log("Local data initialize successful") })
         .catch(err=>{ console.log("Local data initailize failure: ", err) })
@@ -385,15 +386,15 @@ self.addEventListener("fetch", function(event){
                 fetch(event.request)
                 .then(function(response){
                     var signInResponse = response.clone();
-                    signInResponse.json()
+                    return signInResponse.json()
                     .then(resJSON=>{
-                        setDbData(TOKEN_KEY, resJSON.token)
-                        .then(function(){
-                            console.log("Token saved"); // TODO not needed
-                        }); 
+                        return setDbData(TOKEN_KEY, resJSON.token);
                     })
-                    .catch()
+                    .catch(function(err){
+                        console.log("Error storing token: ", err);
+                    })
                     .then(function(){
+                        // Always return response
                         return response;
                     })
                 })
@@ -401,6 +402,7 @@ self.addEventListener("fetch", function(event){
         }
     }
 
+    
     // HANDLE MAIN DATA REQUEST
     if(pathname === MAIN_APP_API_URL ){
         event.respondWith(new Promise(function(resolve, reject){
