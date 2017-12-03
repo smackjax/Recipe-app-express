@@ -57,7 +57,10 @@ function setDbData(dbKey, data){
     // JSON isn't required for the db, 
       // but with such tight control I figured why not.
     var JSONData = JSON.stringify(data);
-    return localforage.setItem(dbKey, JSONData);
+    return localforage.setItem(dbKey, JSONData)
+    .then(function(){ 
+        console.log("Successfully saved to db. KEY: " + dbKey + " - DATA: ", JSONData);
+    });
 }
 
 
@@ -66,12 +69,12 @@ function getDbData(dbKey){
     return localforage.getItem(dbKey)
     .then(data=>{
         // Return parsed data
-        console.log("Local data under " + dbKey + " retrieve successful. JSON data: ", data);
+        console.log("Local data under " + dbKey + " JSON data: ", data);
         return data ? JSON.parse(data) : false;
     })
     .catch(err=>{
         // Catch and throw for specificity
-        console.log("getDbData couldn't retrieve data from indexDB");
+        console.log("getDbData couldn't retrieve data from local");
         throw err;
     });
 }
@@ -142,8 +145,8 @@ var saveBacklog = function(){
             // Save backlog, clearing each part on successful save
             return saveRecipes(token)
             .then(function(){
-                console.log("Saved recipe backlog cleared")
                 // Clear save recipe backlog
+                console.log("Clearing Recipes to save");
                 return setDbData(RECIPES_SAVE_KEY, []) 
             })
             .then(function(){ 
@@ -151,7 +154,6 @@ var saveBacklog = function(){
                 return deleteRecipes(token) 
             })
             .then(function(){
-                console.log("Delete recipe backlog cleared")
                 // Clear delete recipe backlog
                 return setDbData(RECIPES_DELETE_KEY, []);
             })
@@ -160,12 +162,11 @@ var saveBacklog = function(){
                return deleteFriends(token)
             })    
             .then(()=>{
-                console.log("Delete friends backlog cleared")
                 // Clear delete friend Ids from backlog
                 setDbData(FRIENDS_DELETE_KEY, []);
                 // If all operations successful, final result true 
                 return true;
-            }) 
+            })
         } else {
             throw Error("No saved token found");
         }
@@ -174,7 +175,8 @@ var saveBacklog = function(){
     .catch(err=>{
         console.log("Error saving backlog: ", err);
         // Throws error for logic path that called for backlog save
-            // I.E. for it to get last successful sync, or just pass request through 
+            // I.E. Then the calling function will get last successful sync, 
+            // or just pass it's request through 
         throw Error("Couldn't save backlog");
     });
 }
@@ -187,6 +189,7 @@ var saveBacklogArray = function(token, apiRouteOpts, newValues){
     var pathname = apiRouteOpts.pathname;
     var method = apiRouteOpts.method;
     var localKey = apiRouteOpts.localKey;
+
     // Set JWT
     var Authorization = {"Authorization" : "Bearer " + token};
     // Append headers shared across requests
@@ -198,23 +201,37 @@ var saveBacklogArray = function(token, apiRouteOpts, newValues){
         var unsentData = backlogData || [];
         // If no new data, just concat empty array
         var newData = newValues || [];
-        var newBacklog = backlogData.concat(newData);
+        var newBacklog = filterBacklogFromRequest(unsentData, newData)
         return newBacklog;
     })
     // Take new updated data and send request
     .then(function(dataToSave){
         if(dataToSave.length > 0){
-            var JSONData = dataToSave;
-            return fetch(pathname, {
-                method,
-                headers,
-                body: JSONData
+            
+            var newBody = JSON.stringify({
+                [apiRouteOpts.requestSaveKey]: dataToSave
+            });
+        
+            var fetchInit = {
+                method: method,
+                headers: new Headers(headers),
+                body: newBody
+            }
+            console.log("Fetch init object ", fetchInit);
+
+            return fetch(pathname, fetchInit)
+            .then(function(response){
+                if(!response.ok){
+                    throw Error("Server response not 200")
+                }
             })
             .catch(function(err){
                 // If something fails, 
                 // resave to local with updated values
-                setDbData(localKey, dataToSave);
-                throw Error("Couldn't clear " + localKey);
+                return setDbData(localKey, dataToSave)
+                .then(function(){
+                    throw Error("Couldn't clear " + localKey + ": ", err);    
+                });
             })
         } else { 
             // If there are no values to save(no backlog or new values)
@@ -227,7 +244,6 @@ var saveBacklogArray = function(token, apiRouteOpts, newValues){
 
 // These all return promises
 var saveRecipes = function (token, newValueArray){
-    
     return Promise.resolve([]) // TODO <-- A bit hacky. There has to be a better way.
     .then(function(){
         // If there are new values
@@ -240,9 +256,15 @@ var saveRecipes = function (token, newValueArray){
                 // If there is an array, and it has recipes
                 if(userRecipes && userRecipes.length > 0){
                         // Get id's of new/modified recipes
-                    var idsToAdd = newValueArray.map(function(recipe){ return recipe.id });
+                    var idsToAdd = newValueArray.map(
+                        function(recipe){ 
+                            return recipe.id 
+                        });
+                        console.log("recipe ids added/modified: ", idsToAdd);
                     // Filter out recipes about to be added
-                    var filteredRecipes = userRecipes.filter(function(recipe){ return !idsToAdd.includes(recipe.id) });
+                    var filteredRecipes = userRecipes.filter(function(recipe){ return 
+                        !idsToAdd.includes(recipe.id) 
+                    });
                     // Add new/modified recipes
                     newRecipes = filteredRecipes.concat(newValueArray);
                 } else {
@@ -274,7 +296,6 @@ var saveRecipes = function (token, newValueArray){
             newValueArray
         )
     })
-     
 }
 var deleteRecipes = function (token, idsToDelete){
     // Delete recipe from local Cache
@@ -350,8 +371,6 @@ var deleteFriends = function (token, idsToDelete){
             idsToDelete 
         ); 
     })
-    
-    
 }
 
 
@@ -360,7 +379,10 @@ self.addEventListener("install", event=>{
     event.waitUntil(
         Promise.all([
             setDbData(MAIN_APP_DATA_KEY, {}),
-            setDbData(RECIPES_SAVE_KEY, []),
+            setDbData(RECIPES_SAVE_KEY, []).then(function(){
+                console.log("Initialized " + RECIPES_SAVE_KEY);
+                return true;
+            }),
             setDbData(RECIPES_DELETE_KEY, []),
             setDbData(FRIENDS_DELETE_KEY, []),
             setDbData(TOKEN_KEY, "")
@@ -388,7 +410,9 @@ self.addEventListener("fetch", function(event){
                     var signInResponse = response.clone();
                     return signInResponse.json()
                     .then(resJSON=>{
-                        return setDbData(TOKEN_KEY, resJSON.token);
+                        var JWT = resJSON.token;
+                        console.log("JWT to save: ", JWT);
+                        return setDbData(TOKEN_KEY, JWT);
                     })
                     .catch(function(err){
                         console.log("Error storing token: ", err);
@@ -402,7 +426,7 @@ self.addEventListener("fetch", function(event){
         }
     }
 
-    
+
     // HANDLE MAIN DATA REQUEST
     if(pathname === MAIN_APP_API_URL ){
         event.respondWith(new Promise(function(resolve, reject){
@@ -430,7 +454,7 @@ self.addEventListener("fetch", function(event){
                             // This is the ideal outcome
                             // Request successful; Save successful;
                             // Return response
-                            console.log("Success: App synced with fresh data");
+                            console.log("App synced with fresh data");
                             resolve(response);
                         }); 
                     })
@@ -473,37 +497,74 @@ self.addEventListener("fetch", function(event){
         }));
     }
 
-    // If request path might have backlog to save
+    // If request path should interact with the backlog
     var routeOpts = API_BACKLOG_ROUTES[pathname];
-
     if(routeOpts){
-        console.log("ROUTE HAS OPTS");
+        // Get 
         var dbKey = routeOpts.localKey;
-        // Get body(will be one item in an array)
-        event.request.json()
-        .then(function(reqBody){
-            // Get current backlog for route
-            getDbData(dbKey)
-            .then(function(returnedVals){
-                var backlogValues = returnedVals || [];
-                console.log("Current backlog values: ", backlogValues);
-                // Concat new value onto backlog
-                console.log("newValues: ", reqBody);
-                var newBacklog = backlogValues.concat(reqBody);
-                // Save updated array
-                setDbData(dbKey, newBacklog)
-                .then(function(){
-                    console.log("New values saved to backlog: ", newBacklog);
-                    // After backlog is updated, save all backlog
-                    saveBacklog();
+        event.respondWith(
+            // Get body vals(will be array)
+            event.request.json()
+            .then(function(reqBody){
+                // Get current backlog vals for this route
+                return getDbData(dbKey)
+                .then(function(returnedVals){
+                    var backlogValues = returnedVals || [];
+                    // Pull values from this request.body prop
+                    var reqValues = reqBody[routeOpts.requestSaveKey];
+                    // Concat new values onto backlog
+                    var newBacklog = 
+                        // (Filter out duplicates)
+                        filterBacklogFromRequest(backlogValues, reqValues);
+                    // Save combined array
+                    return setDbData(dbKey, newBacklog)
+                    .then(function(){
+                        // After backlog is updated, save all backlog
+                        return saveBacklog()
+                        .catch(function(err){
+                            console.log("Couldn't save backlog(from secondary api route): ", err);
+                        });
+                    })
                 })
             })
-        })
-        .catch(function(err){
-            console.log("Error in api route with backlog: ", err);
-            console.log("Defaulted to original request");
-            return fetch(event.request);
-        })
-
+            .catch(function(err){
+                // This shouldn't happen
+                console.log("Fatal error in backlog api route: ", err);
+                console.log("Defaulted to original request");
+                return fetch(event.request);
+            })
+            .then(function(){
+                // If things are working properly, 
+                // return good code
+                console.log("Returned server code 200");
+                return new Response("", {status: 200});
+            })
+        )
     }
 });
+
+// Filters duplicates in arrays
+// whether it's an objects with an id prop 
+// or an id string
+var filterBacklogFromRequest = function(backlogData, requestValsArray){
+    // Get filter criteria
+    var idsToAdd = requestValsArray.map(function(item){
+        console.log("Item: ", item);
+        if(typeof item === "object" && item.id){
+            return item.id;
+        } else { return item }
+    });
+    // Filter against the obj.id or the item(whatever it is)
+    var filtered = backlogData.filter(function(item){
+        var checkVal;
+        if(typeof item === "object" && item.id){
+            checkVal = item.id;
+        } else { 
+            checkVal = item;  
+        }
+        return !idsToAdd.includes(checkVal);
+    });
+
+    // Concat new values to filtered list
+    return filtered.concat(requestValsArray);
+};
