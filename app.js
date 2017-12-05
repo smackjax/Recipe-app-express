@@ -29,7 +29,9 @@ app.use(cookieParser());
 app.use('/app',
   express.static(path.join(__dirname, "app"))
 );
-
+app.use('/service-worker.js',
+express.static(path.join(__dirname, "service-worker.js"))
+);
 
 // JWT authentication stuff
 var expressJWT = require('express-jwt');

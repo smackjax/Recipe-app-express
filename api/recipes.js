@@ -35,20 +35,21 @@ router.post('/', (req, res)=>{
                     // array to update user
                     var updateQuery = { $set: newRecipes};
 
-                    USERS.update({"_id": userDoc._id}, updateQuery, (err, updateResult)=>{
+                    USERS.update({"_id": userDoc._id}, updateQuery, (error, updateResult)=>{
                         if(err){
-                            return res.status(550).send(err)
+                            return res.status(550).send(error)
                         }
                         return res.status(200).send("Recipes update success"); 
                     });
 
                 } else {
+                    
                     return res.status(404).send("User not found.")
                 }
-            });
+            })
         } catch(err){
             console.log(err);
-            return res.status(550).send("Database error: ");
+            return res.status(550).send("Database error: ", err);
         }
     } else {
         return res.status(400).send("'newRecipes' not set in request. Should be array of recipe objects.");
@@ -56,7 +57,6 @@ router.post('/', (req, res)=>{
 });
 // Delete recipe
 router.post('/delete', (req, res)=>{
-    console.log("Request to recipes/delete: ", req);
     // req.user.userId(parsed from JWT)
     // req.body.recipeIds
     if(req.body.recipeIds && req.body.recipeIds.length > 0){

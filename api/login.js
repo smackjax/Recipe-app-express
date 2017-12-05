@@ -115,4 +115,12 @@ router.post('/check-username', (req, res)=>{
     }
     
 });
+
+router.post('/logout', (req, res)=>{
+    // Nothing needs to be done on the server, 
+    // but this is useful for the service worker.
+    // If something is added to logout logic, 
+    // should probably use a different(validated) route
+    return res.status(200).send("Logged out");
+});
 module.exports = router;
