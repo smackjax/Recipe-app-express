@@ -89,17 +89,13 @@ function setDbData(dbKey, data){
     // JSON isn't required for the db, 
       // but with such tight control I figured why not.
     var JSONData = JSON.stringify(data);
-    return localforage.setItem(dbKey, JSONData)
-    .then(function(){ 
-        console.log("Successfully saved to db. KEY: " + dbKey + " - DATA: ", JSONData);
-    });
+    return localforage.setItem(dbKey, JSONData);
 }
 // Get data from storage
 function getDbData(dbKey){
     return localforage.getItem(dbKey)
     .then(data=>{
         // Return parsed data
-        // console.log("Local data under " + dbKey + " JSON data: ", data);
         return JSON.parse(data)
     })
     .catch(err=>{
@@ -117,7 +113,6 @@ var setMainAppData = function (appData){
 var getCachedAppData = function (){
     return getDbData(MAIN_APP_DATA_KEY)
     .then(function(appData){
-        console.log("Stored main data: ", appData);
         // If there is app data from a previous sync
         if(typeof appData === "object" && 
             Object.getOwnPropertyNames(appData).length > 0){
@@ -166,22 +161,22 @@ var getCachedAppData = function (){
         .then(function(cleanedRecipes){
             return getDbData(FRIENDS_DELETE_KEY)
             .then(function(possibleIds){
-                console.log("appData in friends: ", appData);
+
                 var idsToDelete = possibleIds || [];
-                console.log("Friends ids deleted since last sync: ", idsToDelete);
+               
                 var filteredFriends = appData.friendsInfo.filter(
                     function(friend){
                         return !idsToDelete.includes(friend.userId)
                     }
                 )
-                console.log("filteredFriends: ", filteredFriends);
+                
                 return filteredFriends;
             })
             .then( function(cleanedFriends){
                 var updatedAppData = Object.assign({}, appData);
                 updatedAppData.userInfo.recipes = cleanedRecipes;
                 updatedAppData.friendsInfo = cleanedFriends;
-                console.log("Updated main data: ", updatedAppData);
+                
                 return updatedAppData
             })
         })  
@@ -228,7 +223,6 @@ var saveBacklog = function(){
             return saveRecipes(token)
             .then(function(){
                 // Clear save recipe backlog
-                console.log("Clearing Recipes to save");
                 return setDbData(RECIPES_SAVE_KEY, []) 
             })
             .then(function(){ 
@@ -341,13 +335,29 @@ var deleteRecipes = function (token, idsToDelete){
 }
 var deleteFriends = function (token, idsToDelete){
     // Sync to server
-
     return saveBacklogArray( 
         token, 
         API_ROUTES_INFO.deleteFriends, 
         idsToDelete 
     ); 
+}
 
+var saveNewFriendToCache = function(friendData){
+    return getCachedAppData()
+    .then(function(appData){
+        // Get current friend list
+        var currentFriends;
+        if(appData.friendsInfo){ currentFriends = appData.friendsInfo; }
+        else { currentFriends = []; }
+        var newFriends = [].concat(currentFriends, friendData);
+        var newAppData = Object.assign({}, appData);
+        newAppData.friendsInfo = newFriends;
+        return setMainAppData(newAppData)
+    })
+    .catch(function(err){
+        console.log("Error updating local cache friends: ", err);
+        throw Error("Couldn't update local appData.friends cache");
+    })
 }
 
 var resetLocalData = function(){
@@ -413,7 +423,6 @@ self.addEventListener("fetch", function(event){
             saveBacklog()
             // Then get fresh app data
             .then(function(){
-                console.log("Fetching main app data");
                 // TODO set timeout for like 5 seconds, 
                     // Then check for previous sync data,
                     // If found, return that
@@ -433,7 +442,6 @@ self.addEventListener("fetch", function(event){
                             // This is the ideal outcome
                             // Request successful; Save successful;
                             // Return response
-                            console.log("App synced with fresh data: ", freshAppData);
                             resolve(response);
                         }); 
                     })
@@ -498,7 +506,7 @@ self.addEventListener("fetch", function(event){
                         // After backlog is updated, sync all backlog to server
                         return saveBacklog()
                         .catch(function(err){
-                            console.log("Couldn't save backlog(from secondary api route): ", err);
+                            console.log("Couldn't save to backlog(from secondary api route): ", err);
                         });
                     })
                 })
@@ -514,7 +522,6 @@ self.addEventListener("fetch", function(event){
             .then(function(){
                 // If things are working properly, 
                 // return good status code
-                console.log("Returned server code 200");
                 return new Response("", {status: 200});
             })
         )
@@ -552,32 +559,7 @@ self.addEventListener("fetch", function(event){
             })
         )
     }
-
-    if(pathname === "/user/logout"){
-        console.log("TODO clear all service worker values");
-    }
 });
 
 
 
-var saveNewFriendToCache = function(friendData){
-    return getCachedAppData()
-    .then(function(appData){
-        // Get current friend list
-        console.log("App data before new friend: ", appData);
-        var currentFriends;
-        if(appData.friendsInfo){ currentFriends = appData.friendsInfo; }
-        else { currentFriends = []; }
-        console.log("currentFriends: ", currentFriends);
-        var newFriends = [].concat(currentFriends, friendData);
-        var newAppData = Object.assign({}, appData);
-        console.log("newFriends: ", newFriends);
-        newAppData.friendsInfo = newFriends;
-        console.log("New app data with new friends: ", newAppData);
-        return setMainAppData(newAppData)
-    })
-    .catch(function(err){
-        console.log("Error updating local cache friends: ", err);
-        throw Error("Couldn't update local appData.friends cache");
-    })
-}
