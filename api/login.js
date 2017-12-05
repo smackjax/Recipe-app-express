@@ -1,5 +1,6 @@
 var express = require('express');
 var router = express.Router();
+var bcryptFuncs = require("../_bcrypt/funcs");
 var db = require('../_db/db');
 var uniqid = require('uniqid');
 var jwt = require('jsonwebtoken');
@@ -26,13 +27,18 @@ router.post('/new-user', (req, res)=>{
         if(foundDoc){
             return res.send(422, 'Username taken.');
         } else {
+            
+            // Hash password
+            var hashedPass = 
+                bcryptFuncs.hashPass(rPassword);
+
             var newUserId = uniqid("u-");
             var newUser = {
                 "_id" : newUserId,
                 username: rUsername,
                 email: rEmail,
                 displayName: rDisplayName,
-                password: rPassword,
+                password: hashedPass,
                 friends: [],
                 recipes: {}
             };
@@ -64,13 +70,17 @@ router.post('/existing', (req, res)=>{
     var username = req.body.username;
 
     db.users.findOne({"username": username}, (err, foundUser)=>{
-        if(foundUser){    
-            if(req.body.password === foundUser.password){
-                // generate token
-                // add token to user
-                // (if successful) return token
-                
+        if(foundUser){
+            // Check password against hash
+            var passwordsMatch = 
+                bcryptFuncs.verifyPass(
+                    req.body.password, 
+                    foundUser.password
+            );
+            if(passwordsMatch){
+                // Generate token with userId
                 var newToken = jwt.sign({"userId": foundUser._id}, JWTSecret);
+                // Add token to user data returned
                 var userInfo = {
                     token: newToken,
                     userId: foundUser._id,

@@ -1,6 +1,7 @@
 var express = require('express');
 var db = require('../_db/db');
 var router = express.Router();
+var {verifyPass, hashPass} = require('../_bcrypt/funcs');
 var extractRecipes = require('../_functions/extractRecipes');
 
 /* this route handles all user data */
@@ -10,8 +11,6 @@ var extractRecipes = require('../_functions/extractRecipes');
 
 router.post('/',(req, res)=>{
     const {user, body } = req;
-    console.log("Request 'user' to user/: ", user);
-    console.log("Request 'body' to user/: ", body);
     // req.user.userId(parsed from JWT)
     db.users.findOne({"_id": req.user.userId}, (err, userDoc)=>{
         if(userDoc){
@@ -47,164 +46,160 @@ router.post('/',(req, res)=>{
                     userInfo: myInfo,
                     friendsInfo: friendInfoObjs,
                 }
-                res.status(200).send(returnObj)
+               return res.status(200).send(returnObj)
             }) // end 'then'
         } else {
-            res.status(404).send("User not found")
+            return res.status(404).send("User not found")
         }
     });
 });
 
+var findUserFromJWT = (req, res, callback)=>{
+    // Finds user based on req.user.userId (from expressJWT)
+    if(req.user.userId){
+        db.users.findOne({"_id": req.user.userId}, (err, foundDoc)=>{
+            if(err){
+                return res.status(550).send("Database error: " + err);
+            } else if(foundDoc){
+                return callback(req, res, foundDoc);
+            } else {
+                return res.status(404).send("User not found");
+            }
+        });
+    } else {
+        // This shouldn't happen, 
+        // any routes needing verification should be caught higher.
+        // But like they say:
+        // "Safety is no accident" 
+        return res.status(401).send("No JWT or no userId in JWT");
+    }
+}
+// Checks stored user password against req.body.password
+var verifyRequestPassword = (req, res, userData, callback)=>{
+    // Checks for sent password
+    if(!req.body.password.trim()){
+        return res.status(400).send("No password sent");
+    } else {
+        var reqPass = req.body.password;
+        if(verifyPass(reqPass, userData.password)){
+            callback(req, res, userData);
+        } else {
+            return res.status(401).send("Incorrect password");
+        }
+    }
+}
+// Finds user based on JWT and req.body.password
+var findUserAndVerifyPass = function(req, res, callback){
+    // Passes arguments (req, res, userData) to callback
+    var checkPass = (req, res, userData)=>{
+        verifyRequestPassword(req, res, userData, callback);
+    }; 
+    return findUserFromJWT(req, res, checkPass);
+};
+
+
+
+
+// Updates user doc prop
+var updateDbUserDocByPassword = function(req, res, docProp, newValue){
+    var dbUpdateQuery = (req, res, foundDoc)=>{
+        db.users.update(
+            // Doc to update
+            {'_id': foundDoc._id}, 
+            // Prop : value to set
+            {$set: {[docProp]: newValue}}, 
+            // Callback from database action
+            (err, updateResult)=>{
+                if(err) {
+                    return res.status(550).send("Database error: ", err);
+                } else {
+                    var msg = "Updated " + docProp +
+                        " successfully";
+                    return res.status(200).send(msg);
+                }
+            }
+        );
+    };
+    return findUserAndVerifyPass(req, res, dbUpdateQuery)
+};
 
 
 router.put('/username', (req, res)=>{
     // req.user.userId(parsed from JWT)
     // req.body.password
     // req.body.newUsername
-    if(!req.body.newUsername){
+    var newUsername = req.body.newUsername.trim();
+    if(!newUsername){
         return res.status(400).send("'newUsername' not sent");
     } else {
-        var newUsername = req.body.newUsername.trim();
-        if(newUsername !== ""){
-            db.users.findOne({"_id": req.user.userId}, (err, foundDoc)=>{
-                if(foundDoc){
-                    if(foundDoc.password === req.body.password){
-                        
-                    } else {
-                        res.status(401).send("Current password doesn't match")
-                    }  
-                } else {
-                    res.status(400).send("User not found");
-                }
-            });
-            db.users.update({'_id': req.user.userId}, 
-            {$set: {"username": newUsername}}, 
-                (err, updateResult)=>{
-                    if(err) {
-                        return res.status(550).send(err);
-                    } else if(updateResult.nModified === 1){
-                        return res.status(200).send(newUsername);
-                    } else {
-                        return res.status(551).send('Username name not updated.');
-                    }
-                }
-            ); 
-        } else {
-            res.status(400).send("'newUsername' can't be empty");
-        }
+        // Function handles user retrieval
+        // and verification by password
+        updateDbUserDocByPassword(
+            req,
+            res,
+            "username", 
+            newUsername
+        );
     }
 });
 
+// Updates 'displayName'
 router.put('/display-name', (req, res)=>{
-    // req.user.userId(parsed from JWT)
-    // req.body.password
-    // req.body.newDisplayName
-
-    if(!req.body.newDisplayName){
+    var newDisplayName = req.body.newDisplayName.trim();
+    if(!newDisplayName){
         return res.status(400).send("'newDisplayName' not sent");
     } else {
-        var newDisplayName = req.body.newDisplayName.trim();
-        if(newDisplayName !== ""){
-            db.users.findOne({"_id": req.user.userId}, (err, foundDoc)=>{
-                if(foundDoc){
-                    if(foundDoc.password === req.body.password){
-                        db.users.update({'_id': req.user.userId}, 
-                        {$set: {"displayName": newDisplayName}}, 
-                            (err, updateResult)=>{
-                                if(err) {
-                                    return res.status(550).send(err);
-                                } else if(updateResult.nModified === 1){
-                                    return res.status(200).send(newDisplayName);
-                                } else {
-                                    return res.status(551).send('Display name not updated.');
-                                }
-                            }
-                        ); 
-                    } else {
-                        res.status(401).send("Current password doesn't match")
-                    }  
-                } else {
-                    res.status(400).send("User not found");
-                }
-            });
-        } else {
-            res.status(400).send("'newDisplayName' can't be empty");
-        }
+        updateDbUserDocByPassword(
+            req,
+            res,
+            "displayName", 
+            newDisplayName
+        );
     }
 });
 
-router.put('/email', (req, res)=>{
-    // req.user.userId(parsed from JWT)
-    // req.body.password
-    // req.body.newEmail
-    
-    // check that input was sent
+
+// Updates 'email'
+router.put('/email', (req, res)=>{    
+    var newEmail = req.body.newEmail.trim();
     if(!req.body.newEmail){
         return res.status(400).send("'newEmail' not sent");
     } else {
-        // check that input isn't empty
-        var newEmail = req.body.newEmail.trim();
-        if(newEmail !== ""){
-            // find user
-            db.users.findOne({"_id": req.user.userId}, (err, foundDoc)=>{
-                if(foundDoc){
-                    // Check password sent with update
-                    if(foundDoc.password === req.body.password){
-                        // Finally update with new email
-                        db.users.update({'_id': req.user.userId}, 
-                        {$set: {"email": newEmail}}, 
-                            (err, updateResult)=>{
-                                if(err) {
-                                    return res.status(550).send(err);
-                                } else {
-                                    return res.status(200).send(newEmail);
-                                }
-                            }
-                        ); 
-                    } else {
-                        res.status(401).send("Current password doesn't match")
-                    }     
-                } else {
-                    res.status(400).send("User not found");
-                }
-            });
-        } else {
-            res.status(400).send("'newEmail' can't be empty");
-        }
+        updateDbUserDocByPassword(
+            req,
+            res,
+            "email", 
+            newEmail
+        );
     }
 });
 
+// Updates 'password'
 router.put('/password', (req, res)=>{
     // req.user.userId(parsed from JWT)
     // req.body.password
     // req.body.newPassword
-    if(!req.body.newPassword || !req.body.password){
+    if(!req.body.newPassword.trim() || !req.body.password.trim() ){
         return res.status(400).send("Both 'newPassword' and 'currentPassword' can not be empty");
     } else {
-        db.users.findOne({"_id": req.user.userId}, (err, foundDoc)=>{
-            if(foundDoc){
-                if(foundDoc.password === req.body.password){
-                    db.users.update({'_id': req.user.userId}, 
-                    {$set: {"password": req.body.newPassword}}, 
-                        (err, updateResult)=>{
-                            if(err){
-                                res.status(500).send(err);
-                            } else if(updateResult.nModified === 1){
-                                res.status(200).send('Updated password successfully');
-                            } else {
-                                res.status(500).send('Password not updated. No database errors, but not updated.');
-                            }
-                        }
-                    ); 
-                } else {
-                    res.status(401).send("Current password doesn't match")
-                }  
-            } else {
-                res.status(400).send("User not found");
-            }
-        });
-
-        
+        // This uses it's own 'set' function to 
+        // save the hashing until it is definitely required
+        var updateUserPassword = (req, res, userData)=>{
+            var newPass = 
+                hashPass(req.body.newPassword);
+            db.users.update(
+                {'_id': userData._id}, 
+                {$set: {"password": newPass}}, 
+                (err, updateResult)=>{
+                    if(err){
+                        res.status(550).send(err);
+                    } else{
+                        res.status(200).send('Updated password');
+                    }
+                }
+            ); 
+        }
+        findUserAndVerifyPass(req, res, updateUserPassword)
     }
 });
 
@@ -215,18 +210,13 @@ router.post('/check-password', (req, res)=>{
     if(!passToCheck){
         return res.status(400).send("No password sent");
     } else {
-        db.users.findOne({"_id": req.user.userId}, (err, foundDoc)=>{
-            if(foundDoc){
-                if(foundDoc.password === passToCheck){
-                    res.status(204).send();
-                } else {
-                    res.status(401).send("Current password doesn't match")
-                }
-                
-            } else {
-                res.status(400).send("User not found");
-            }
-        });
+        var sendConfirm = (req, res, userData)=>{
+            // If it gets this far, there is a user
+            // and password is confirmed,
+            // so just send good code
+            return res.status(200).send();
+        }
+        findUserAndVerifyPass(req, res, sendConfirm);
     }
 });
 
@@ -234,34 +224,16 @@ router.post('/check-password', (req, res)=>{
 router.post('/close-account', (req, res)=>{
     // req.user.userId(parsed from JWT)
     // req.body.password
-
-    const userId = req.user.userId;
-    var idToDelete = userId.trim();
-    var query = {"_id": userId};
-    if(idToDelete !== ""){
-        db.users.findOne(query, (err, userDoc)=>{
-            if(userDoc){
-                if(req.body.password === userDoc.password){
-                    db.users.remove({'_id': userId}, true, (err, result)=>{
-                        if(err){
-                            return res.status(550).send(err);
-                        } else if(result){
-                            // TODO could use some better fact checking
-                            return res.status(200).send('Deleted user');
-                        } else {
-                            return res.status(552).send("Problem deleting, but no errors");
-                        }
-                    });
-                } else {
-                    res.status(400).send("Wrong password");
-                }
-            } else { 
-                res.status(404).send('No user with that id');
+    var deleteUserDoc = (req, res, userData)=>{
+        db.users.remove({'_id': userData._id}, true, (err, result)=>{
+            if(err){
+                return res.status(550).send(err);
+            } else {
+                return res.status(200).send('Deleted user');
             }
         });
-    } else {
-        res.status(400).send("'userId' can't be empty")
     }
+    return findUserAndVerifyPass(req, res, deleteUserDoc);
 });
 
 
